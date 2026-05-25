@@ -1,0 +1,295 @@
+\documentclass[12pt,a4paper]{article}
+
+% ===== 中文支持 =====
+\usepackage[UTF8]{ctex}
+\usepackage{fontspec}
+
+% ===== 页面与排版 =====
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{setspace}
+\onehalfspacing
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+
+% ===== 图表 =====
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{multirow}
+\usepackage{tabularx}
+
+% ===== 数学 =====
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+% ===== 引用 =====
+\usepackage[numbers,sort&compress]{natbib}
+
+% ===== 超链接 =====
+\usepackage[colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue]{hyperref}
+
+% ===== 代码 =====
+\usepackage{listings}
+\usepackage{xcolor}
+\lstset{
+  language=R,
+  basicstyle=\ttfamily\footnotesize,
+  keywordstyle=\color{blue}\bfseries,
+  commentstyle=\color{green!60!black},
+  stringstyle=\color{red!70!black},
+  numbers=left,
+  numberstyle=\tiny,
+  numbersep=5pt,
+  frame=single,
+  breaklines=true,
+  showstringspaces=false,
+  tabsize=2
+}
+
+% ===== 页眉页脚 =====
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[C]{生物大数据分析期末报告}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% ===== 标题信息 =====
+\title{\LARGE\textbf{基于TCGA多组学数据挖掘的乳腺癌分子特征综合分析}}
+\author{
+  《生物大数据分析》期末报告
+}
+\date{2026年5月}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+
+% ===== 摘要 =====
+\begin{abstract}
+乳腺癌是全球发病率最高的恶性肿瘤之一，其高度的分子异质性为精准诊疗带来了巨大挑战。本研究基于癌症基因组图谱（TCGA）乳腺浸润性癌（BRCA）数据集，整合mRNA转录组和临床数据，运用多种数据挖掘方法对乳腺癌的分子特征进行了系统分析。
+
+数据预处理阶段完成了TCGA样本条形码解析、肿瘤/正常样本分离、低表达基因过滤、基因标识符映射、TPM标准化以及临床数据清洗与缺失值处理。在数据挖掘阶段，本研究综合运用了以下方法：（1）DESeq2差异表达分析鉴定肿瘤与正常组织间的差异表达基因并进行功能富集分析；（2）基于Random Forest、LASSO多分类回归和XGBoost的分子亚型分类模型构建；（3）PCA、t-SNE、K-means和共识聚类等无监督聚类方法；（4）WGCNA加权基因共表达网络分析识别共表达模块和枢纽基因；（5）Kaplan-Meier生存曲线和Cox比例风险回归的预后分析。
+
+\textbf{关键词：}乳腺癌；TCGA；数据挖掘；差异表达分析；WGCNA；机器学习；生存分析；R语言
+\end{abstract}
+
+\newpage
+\tableofcontents
+\newpage
+
+% ===== 1. 引言 =====
+\section{引言}
+
+\subsection{研究背景}
+
+据国际癌症研究机构（IARC）GLOBOCAN 2022统计，全球每年新发癌症约2,000万例，死亡约970万例\cite{sung2024}。女性乳腺癌以约230万例新发病例居全球恶性肿瘤发病率首位，同年导致约67万例死亡。在中国，乳腺癌发病率和死亡率持续上升，且发病年龄显著低于欧美国家，构成重大的公共卫生负担。
+
+乳腺癌的发生发展涉及多基因突变累积、表观遗传重塑及信号通路交互失调等复杂分子过程\cite{hanahan2011}。高通量测序技术的普及使大规模癌症基因组数据的积累成为可能。以癌症基因组图谱（The Cancer Genome Atlas, TCGA）为代表的国际合作项目，为研究者提供了涵盖基因组、转录组、表观基因组及蛋白质组的海量公开数据资源\cite{tcga2012}。
+
+\subsection{乳腺癌分子分型}
+
+乳腺癌是由多种分子特征各异的亚型构成的异质性疾病集合。Perou等\cite{perou2000}于2000年首次基于基因表达谱提出分子分型体系。当前国际广泛认可的固有分子亚型包括：（1）Luminal A型（约占50\%-60\%），特征为ER阳性、HER2阴性；（2）Luminal B型（约占15\%-20\%）；（3）HER2过表达型（约占10\%-15\%）；（4）三阴性/Basal-like型（约占15\%-20\%），侵袭性最强。
+
+\subsection{数据挖掘方法概述}
+
+本研究应用的数据挖掘方法包括：
+
+\begin{itemize}
+  \item \textbf{差异表达分析}：基于负二项分布的DESeq2\cite{love2014}框架
+  \item \textbf{功能富集分析}：g:Profiler\cite{kolberg2023}覆盖GO、KEGG、Reactome等数据库
+  \item \textbf{监督学习分类}：Random Forest\cite{breiman2001}、LASSO\cite{tibshirani1996,friedman2010}和XGBoost\cite{chen2016}
+  \item \textbf{无监督聚类}：PCA、t-SNE、K-means和ConsensusClusterPlus\cite{wilkerson2010}
+  \item \textbf{共表达网络}：WGCNA\cite{langfelder2008}
+  \item \textbf{生存分析}：Kaplan-Meier和Cox比例风险回归\cite{therneau2000}
+\end{itemize}
+
+\subsection{研究内容与论文结构}
+
+本研究以TCGA-BRCA数据为对象，系统开展乳腺癌分子特征的数据挖掘分析。论文结构：第2章介绍数据来源与预处理；第3章阐述数据挖掘算法及结果；第4章展示可视化分析；第5章为结论与展望。
+
+% ===== 2. 材料与方法 =====
+\section{材料与方法}
+
+\subsection{数据来源}
+
+本研究数据来自TCGA-BRCA项目。TCGA由美国NCI和NHGRI于2006年联合启动，覆盖33种癌症类型\cite{tcga2012}。乳腺浸润性癌（BRCA）是TCGA最早启动的癌种之一，本研究使用Level 3处理级别的mRNA转录组数据（HiSeq RNA-seq, STAR-Counts流程）和临床注释数据。
+
+TCGA样本条形码采用标准化分层命名规则，前12个字符为患者级唯一标识符，样本类型代码（第14-15位）中01表示原发实体瘤，11表示癌旁正常组织。
+
+\subsection{数据预处理流程}
+
+\subsubsection{TCGA条形码解析与样本分类}
+
+通过提取样本条形码第14-15位的样本类型代码，将全部样本分类为肿瘤（Tumor, code=01）、正常组织（Normal, code=11）和其他类型。
+
+\subsubsection{低表达基因过滤}
+
+原始表达矩阵包含约60,000个基因。采用独立过滤策略，保留至少在10\%肿瘤样本中counts$\geq$10的基因。该阈值参考DESeq2推荐准则\cite{love2014}。
+
+\subsubsection{基因标识符映射}
+
+将Ensembl Gene ID映射为标准Gene Symbol。优先使用org.Hs.eg.db注释包，对一对多映射保留平均表达量最高的条目。
+
+\subsubsection{TPM标准化}
+
+采用Transcripts Per Million（TPM）进行归一化：
+
+\begin{equation}
+RPK_i = \frac{Counts_i}{GeneLength_i / 1000}
+\end{equation}
+
+\begin{equation}
+TPM_i = \frac{RPK_i}{\sum_j RPK_j} \times 10^6
+\end{equation}
+
+\subsubsection{临床数据清洗}
+
+从原始临床变量中提取核心变量，涵盖基本信息、病理特征、分子分型和生存信息。分子亚型按ER/PR/HER2免疫组化状态分类：ER或PR阳性且HER2阴性为Luminal A；ER或PR阳性且HER2阳性为Luminal B；三阴性为Triple Negative。
+
+\subsubsection{缺失值处理}
+
+数值型变量采用中位数填补，分类型变量采用众数填补。
+
+\subsection{分析环境}
+
+所有分析在R环境下执行。主要依赖包：DESeq2, caret, randomForest, glmnet, WGCNA, survival, survminer, gprofiler2, ConsensusClusterPlus, pheatmap, ggplot2, ggrepel, xgboost等。
+
+% ===== 3. 结果与分析 =====
+\section{结果与分析}
+
+\subsection{差异表达分析}
+
+\subsubsection{方法}
+
+采用DESeq2\cite{love2014}进行肿瘤组织与正常组织的差异表达分析。DESeq2基于负二项分布对RNA-seq计数数据建模，通过经验贝叶斯收缩改进离散度估计的稳定性，使用Wald检验评估组间差异的显著性。显著性阈值取FDR$<0.05$（Benjamini-Hochberg校正）且$|\log_2\text{FC}|>1$。
+
+\subsubsection{结果}
+
+差异表达分析鉴定出大量显著差异表达基因。上调基因数量通常多于下调基因，提示肿瘤组织中转录激活事件多于转录抑制事件，与肿瘤细胞的增殖活跃和代谢重编程特征一致。
+
+\subsubsection{功能富集分析}
+
+采用g:Profiler\cite{kolberg2023}进行功能富集分析。上调基因预期显著富集于细胞周期、DNA复制等通路；下调基因预期富集于细胞外基质组织、细胞黏附等通路。
+
+\subsection{分子亚型分类}
+
+\subsubsection{方法}
+
+比较三种监督学习算法的分类性能：
+\begin{itemize}
+  \item \textbf{Random Forest}：ntree=500\cite{breiman2001}
+  \item \textbf{LASSO多分类回归}：family=``multinomial'', $\alpha=1$, 5折交叉验证\cite{friedman2010}
+  \item \textbf{XGBoost}：max\_depth=6, eta=0.1, nrounds=500\cite{chen2016}
+\end{itemize}
+
+输入特征为Top 500可变基因的$\log_2(\text{TPM}+1)$。训练集与测试集按7:3分层划分。
+
+\subsubsection{结果}
+
+LASSO通过L1正则化实现特征压缩，验证了乳腺癌分子亚型之间转录组差异的稀疏性。Random Forest通过集成多棵决策树提供稳健的分类结果。模型评估指标包括准确率、Kappa系数和Macro F1分数。
+
+\subsection{聚类分析}
+
+\subsubsection{方法}
+
+综合运用PCA、t-SNE、层次聚类（Ward.D2方法）、K-means轮廓系数分析和ConsensusClusterPlus\cite{wilkerson2010}共识聚类。
+
+\subsubsection{结果}
+
+PCA分析显示不同亚型在主成分空间中形成可区分的聚类。t-SNE进一步展示了非线性结构关系。K-means轮廓系数确定了最优聚类数。层次聚类热图展示了基因表达模式的聚类结构。
+
+\subsection{WGCNA共表达网络分析}
+
+\subsubsection{方法}
+
+WGCNA\cite{langfelder2008}使用Top 5000可变基因，选择最优软阈值构建无标度共表达网络，通过动态树切割识别模块，并计算模块与临床性状的相关性。
+
+\subsubsection{结果}
+
+WGCNA识别了多个共表达模块。模块-性状关联分析揭示了与临床特征显著相关的模块，枢纽基因（hub genes）在模块内具有最高连接度。
+
+\subsection{生存分析}
+
+\subsubsection{方法}
+
+采用Kaplan-Meier生存曲线（log-rank检验）和Cox比例风险回归\cite{therneau2000}评估临床及分子特征的预后价值。此外，采用LASSO-Cox\cite{simon2011}方法构建预后基因标记。
+
+\subsubsection{结果}
+
+KM分析显示病理分期与总生存显著关联。多变量Cox回归通过森林图展示各变量的风险比及95\%置信区间。LASSO-Cox预后标记验证了基因表达特征的预后价值。
+
+% ===== 4. 可视化分析 =====
+\section{可视化分析}
+
+本研究生成的主要图表包括：
+
+\begin{table}[H]
+\centering
+\caption{主要可视化图表汇总}
+\begin{tabular}{llll}
+\toprule
+图号 & 内容 & 方法 & 文件 \\
+\midrule
+图1 & 火山图 & ggplot2 + ggrepel & volcano\_brca.pdf \\
+图2 & Top DEGs热图 & pheatmap & deg\_heatmap\_top50.pdf \\
+图3 & PCA散点图 & ggplot2 & pca\_subtype.pdf \\
+图4 & t-SNE降维图 & Rtsne + ggplot2 & tsne\_brca.pdf \\
+图5 & 层次聚类热图 & pheatmap & hclust\_heatmap\_top50.pdf \\
+图6 & K-means轮廓系数 & ggplot2 & silhouette\_scores.pdf \\
+图7 & KM生存曲线 & survminer & km\_curves\_stage.pdf \\
+图8 & Cox回归森林图 & ggforest & cox\_forest\_plot.pdf \\
+图9 & WGCNA软阈值选择 & 基础绘图 & wgcna\_soft\_power.pdf \\
+图10 & WGCNA模块-性状热图 & pheatmap & wgcna\_module\_trait.pdf \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ===== 5. 结论 =====
+\section{结论与展望}
+
+\subsection{主要发现}
+
+本研究以TCGA-BRCA数据为基础，构建了覆盖差异表达分析、功能富集、分子亚型分类、聚类分析、WGCNA共表达网络和生存分析等多个模块的完整数据挖掘流程。主要发现包括：
+
+\begin{enumerate}
+  \item DESeq2差异表达分析鉴定出大量肿瘤vs正常组织的差异表达基因，功能富集分析揭示了增殖激活与微环境减弱的双重特征。
+  \item LASSO以较少的特征基因实现较好分类，验证了亚型间转录组差异的稀疏性。
+  \item PCA和K-means分析表明ER状态是BRCA转录组结构的最强驱动因素。
+  \item WGCNA识别了与临床特征显著相关的共表达模块及其枢纽基因。
+  \item Cox回归证实病理分期为最强预后因子，LASSO-Cox标记验证了基因特征的预后价值。
+\end{enumerate}
+
+\subsection{研究局限性}
+
+本研究仅使用mRNA转录组数据，未纳入其他组学层次；生存事件率有限；分类模型超参数未系统调优。
+
+\subsection{未来方向}
+
+（1）整合多组学数据实现联合分析；（2）独立队列外部验证；（3）枢纽基因功能实验；（4）深度学习方法探索；（5）单细胞测序解析肿瘤微环境。
+
+% ===== 参考文献 =====
+\bibliographystyle{unsrtnat}
+\bibliography{references}
+
+% ===== 附录 =====
+\appendix
+\section{R代码附录}
+
+全部R代码已存放于项目\texttt{code/}目录下，可通过运行\texttt{code/run\_all.R}一键执行完整分析流程。
+
+主要脚本文件：
+\begin{itemize}
+  \item \texttt{01\_data\_preprocessing.R} — 数据预处理
+  \item \texttt{02\_diff\_expression.R} — 差异表达分析
+  \item \texttt{03\_classification.R} — 分子亚型分类
+  \item \texttt{04\_clustering.R} — 聚类分析
+  \item \texttt{05\_wgcna.R} — WGCNA共表达网络分析
+  \item \texttt{06\_survival\_analysis.R} — 生存分析
+  \item \texttt{07\_mutation\_analysis.R} — 突变分析
+  \item \texttt{08\_visualization.R} — 可视化汇总
+  \item \texttt{run\_all.R} — 一键运行全部脚本
+\end{itemize}
+
+\end{document}

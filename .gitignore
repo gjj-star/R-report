@@ -1,0 +1,21 @@
+# Data files (too large for git)
+*.Rdata
+data/processed/
+
+# R output
+.Rhistory
+.RData
+.Rproj.user/
+
+# OMC
+.omc/
+
+# Results (generated)
+results/
+
+# System
+.DS_Store
+Thumbs.db
+
+# Claude
+.claude/
