@@ -42,8 +42,14 @@ sample_info_file <- file.path(INPUT_DIR, "sample_info.csv")
 if (file.exists(sample_info_file)) {
   sample_info <- read.csv(sample_info_file, stringsAsFactors = FALSE)
 
-  # Sample type distribution
-  type_counts <- sample_info %>% count(sample_type) %>% arrange(desc(n))
+  # Sample type distribution (use base::table to avoid plyr/dplyr conflict)
+  tp <- table(sample_info$sample_type)
+  type_counts <- data.frame(
+    sample_type = names(tp),
+    n = as.integer(tp),
+    stringsAsFactors = FALSE
+  )
+  type_counts <- type_counts[order(-type_counts$n), ]
 
   p1a <- ggplot(type_counts, aes(x = reorder(sample_type, -n), y = n, fill = sample_type)) +
     geom_bar(stat = "identity", width = 0.6) +
@@ -56,7 +62,12 @@ if (file.exists(sample_info_file)) {
 
   # Stage distribution
   if ("stage_simple" %in% colnames(clinical)) {
-    stage_counts <- clinical %>% filter(!is.na(stage_simple)) %>% count(stage_simple)
+    stg <- table(clinical$stage_simple[!is.na(clinical$stage_simple)])
+    stage_counts <- data.frame(
+      stage_simple = names(stg),
+      n = as.integer(stg),
+      stringsAsFactors = FALSE
+    )
 
     p1b <- ggplot(stage_counts, aes(x = stage_simple, y = n, fill = stage_simple)) +
       geom_bar(stat = "identity", width = 0.6) +
@@ -66,11 +77,13 @@ if (file.exists(sample_info_file)) {
       theme_bw(base_size = 14) +
       theme(legend.position = "none")
 
+    library(patchwork)
     ggsave(file.path(PUB_DIR, "fig1_sample_overview.pdf"),
            p1a + p1b, width = 12, height = 5)
   } else {
     ggsave(file.path(PUB_DIR, "fig1_sample_overview.pdf"), p1a, width = 6, height = 5)
   }
+  cat("  Fig 1 saved.\n")
 }
 
 # ---- 3. Fig2: Volcano plot (enhanced) ----

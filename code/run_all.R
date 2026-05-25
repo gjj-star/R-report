@@ -4,23 +4,25 @@
 # 说明：按顺序执行所有分析脚本
 # ===========================================================================
 
+# User library path (winget-installed R requires this)
+.user_lib <- "C:/Users/a3036/R/win-library/4.6"
+if (dir.exists(.user_lib)) .libPaths(c(.user_lib, .libPaths()))
+
 cat("\n")
 cat("================================================================\n")
 cat("  TCGA-BRCA Multi-Omics Data Mining Pipeline\n")
 cat("  All-in-One Execution Script\n")
 cat("================================================================\n")
 cat(sprintf("  Start time: %s\n", Sys.time()))
+cat(sprintf("  R version: %s\n", R.version.string))
+cat(sprintf("  Library paths: %s\n", paste(.libPaths(), collapse = "; ")))
 cat("================================================================\n\n")
 
 # Set working directory to project root
-BASE_DIR <- tryCatch(here::here(), error = function(e) {
-  # Fallback: use script directory
-  if (exists("sys.frame")) {
-    normalizePath(file.path(dirname(sys.frame(1)$ofile), ".."))
-  } else {
-    getwd()
-  }
-})
+BASE_DIR <- "G:/CloudeCoding/Workplace/r-work"
+if (!dir.exists(BASE_DIR)) {
+  BASE_DIR <- tryCatch(here::here(), error = function(e) getwd())
+}
 
 setwd(BASE_DIR)
 cat(sprintf("  Working directory: %s\n\n", BASE_DIR))

@@ -6,13 +6,24 @@
 Sys.setlocale("LC_ALL", "English")
 options(stringsAsFactors = FALSE)
 
+# Disable all parallel backends to avoid .doSnowGlobals error
+suppressWarnings({
+  if (requireNamespace("BiocParallel", quietly = TRUE)) {
+    BiocParallel::register(BiocParallel::SerialParam())
+  }
+  if (requireNamespace("doParallel", quietly = TRUE)) {
+    foreach::registerDoSEQ()
+  }
+})
+
 suppressPackageStartupMessages({
   library(WGCNA)
   library(tidyverse)
   library(pheatmap)
 })
 
-enableWGCNAThreads(4)
+# Configure WGCNA threading (minimum 2 required by blockwiseModules)
+allowWGCNAThreads(2)
 
 cat("\n========== Script 05: WGCNA Co-expression Network ==========\n\n")
 
@@ -97,7 +108,7 @@ net <- blockwiseModules(
   saveTOMs = FALSE,
   verbose = 2,
   maxBlockSize = n_genes + 100,
-  nThreads = 4
+  nThreads = 2
 )
 
 module_colors <- labels2colors(net$colors)

@@ -240,31 +240,32 @@ cat("\nStep 8: Cleaning clinical data...\n")
 cat(sprintf("  Raw clinical columns: %s\n", paste(colnames(clinical_raw)[1:min(10, ncol(clinical_raw))], collapse = ", ")))
 cat(sprintf("  Total columns: %d\n", ncol(clinical_raw)))
 
-# Identify key clinical variables - flexible matching
+# Identify key clinical variables - precise matching
 col_names <- colnames(clinical_raw)
 
-find_col <- function(patterns) {
+find_col <- function(patterns, exclude = NULL) {
   for (p in patterns) {
     idx <- grep(p, col_names, ignore.case = TRUE)
+    if (!is.null(exclude)) idx <- idx[!grepl(exclude, col_names[idx], ignore.case = TRUE)]
     if (length(idx) > 0) return(col_names[idx[1]])
   }
   return(NA_character_)
 }
 
-barcode_col   <- find_col("bcr_patient_barcode|patient_barcode|barcode")
-vital_col     <- find_col("vital_status")
-death_col     <- find_col("days_to_death")
-followup_col  <- find_col("days_to_last_follow|last_follow")
-age_col       <- find_col("age_at.*diagnosis|age_at_initial")
+barcode_col   <- find_col("^bcr_patient_barcode$")
+vital_col     <- find_col("^vital_status$")
+death_col     <- find_col("^days_to_death$")
+followup_col  <- find_col("^days_to_last_followup$")
+age_col       <- find_col("^age_at_initial_pathologic_diagnosis$")
 gender_col    <- find_col("^gender$")
-race_col      <- find_col("race")
-stage_col     <- find_col("stage.*pathologic|pathologic_stage|ajcc_pathologic_stage")
-er_col        <- find_col("estrogen_receptor|er_status")
-pr_col        <- find_col("progesterone_receptor|pr_status")
-her2_col      <- find_col("her2_neu|her2_status")
-hist_col      <- find_col("histological_type")
-lymph_col     <- find_col("lymphnodes_positive|lymph_node")
-radiation_col <- find_col("radiation_therapy")
+race_col      <- find_col("^race_list$|^race$")
+stage_col     <- find_col("^stage_event_pathologic_stage$")
+er_col        <- find_col("^breast_carcinoma_estrogen_receptor_status$", "metastatic")
+pr_col        <- find_col("^breast_carcinoma_progesterone_receptor_status$", "metastatic")
+her2_col      <- find_col("^lab_proc_her2_neu_immunohistochemistry_receptor_status$", "metastatic")
+hist_col      <- find_col("^histological_type$")
+lymph_col     <- find_col("^number_of_lymphnodes_positive_by_he$|^number_of_lymphnodes_positive_by_ihc$")
+radiation_col <- find_col("^radiation_therapy$")
 
 cat(sprintf("  Identified clinical columns:\n"))
 var_map <- list(
